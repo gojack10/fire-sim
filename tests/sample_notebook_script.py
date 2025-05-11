@@ -3,7 +3,6 @@ import os
 import glob
 import numpy as np
 import matplotlib.pyplot as plt
-from ..src import simulation # Use relative import if this script is a module
 
 # If running as a standalone script, you might need to adjust sys.path
 # import sys
@@ -54,8 +53,10 @@ def run_single_simulation(elevation_src, grid_rows, grid_cols, ignition_row, ign
     # Plotting
     fig, axs = plt.subplots(1, 2, figsize=(12, 5))
 
-    simulation.plot_grid_state(final_grid, ax=axs[0], title=f"Final State ({os.path.basename(str(elevation_src))})")
-    simulation.plot_grid_property(final_grid, 'elevation', ax=axs[1], title=f"Elevation ({os.path.basename(str(elevation_src))})", cmap='terrain')
+    simulation.plot_grid_state(final_grid, ax=axs[0])
+    axs[0].set_title(f"Final State ({os.path.basename(str(elevation_src))})")
+    simulation.plot_grid_property(final_grid, 'elevation', ax=axs[1], cmap='terrain')
+    axs[1].set_title(f"Elevation ({os.path.basename(str(elevation_src))})")
 
     plt.tight_layout()
     output_plot_filename = f"{output_filename_prefix}_{os.path.basename(str(elevation_src)).replace('.tif','')}_results.png"
@@ -147,5 +148,5 @@ if __name__ == "__main__":
         module_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         if module_path not in sys.path:
             sys.path.append(module_path)
-        from src import simulation
+    from src import simulation
     main()
