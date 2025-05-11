@@ -1,7 +1,10 @@
 numpy
 matplotlib
+noise
+scipy
 ipywidgets
 rasterio
 notebook
 pytest
-noise
+perlin-noise>=1.2.2 # for the 'noise' import
+PyQt6>=6.0.0

@@ -3,7 +3,7 @@ import enum
 import math
 import rasterio
 from rasterio.enums import Resampling
-import noise as perlin_noise # Renamed to avoid conflict with any local 'noise' module/variable
+from scipy.ndimage import zoom # Added for resampling
 
 class CellState(enum.IntEnum):
     UNBURNED = 0
@@ -75,9 +75,16 @@ def initialize_grid(size, fuel_load=1.0, moisture=0.2, elevation_source=None, ce
     elif elevation_source is None:
         grid['elevation'] = 0.0 # Flat terrain
     else:
-        # Assuming elevation_source is a pre-loaded numpy array matching dimensions
+        # Assuming elevation_source is a pre-loaded numpy array
         try:
-            grid['elevation'] = np.array(elevation_source, dtype='f4').reshape(size)
+            source_array = np.array(elevation_source, dtype='f4')
+            if source_array.shape == size:
+                grid['elevation'] = source_array
+            else:
+                # Resample if shapes don't match
+                print(f"Resampling elevation data from {source_array.shape} to {size}")
+                zoom_factors = (size[0] / source_array.shape[0], size[1] / source_array.shape[1])
+                grid['elevation'] = zoom(source_array, zoom_factors, order=1) # order=1 for bilinear
         except Exception as e:
             print(f"Error applying provided elevation data: {e}. Using flat terrain.")
             grid['elevation'] = 0.0
