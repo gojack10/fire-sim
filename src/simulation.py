@@ -98,3 +98,55 @@ def run_simulation(grid, max_steps=100):
         if np.count_nonzero(grid['state'] == CellState.BURNING) == 0:
             break
     return history
+
+def burned_area_over_time(history):
+    """
+    Compute the burned area (number of burned cells) at each time step.
+    Args:
+        history (list of np.ndarray): simulation grid snapshots (from run_simulation)
+    Returns:
+        np.ndarray: burned area at each time step
+    """
+    return np.array([
+        np.count_nonzero(grid['state'] == CellState.BURNED)
+        for grid in history
+    ])
+
+def plot_burned_area(*burned_areas, labels=None, save_path=None):
+    """
+    Plot one or more burned area curves vs. time using matplotlib.
+    Args:
+        *burned_areas: one or more arrays of burned area (for comparison)
+        labels (list of str, optional): labels for each curve
+        save_path (str, optional): if provided, save plot as PNG to this path
+    """
+    import matplotlib.pyplot as plt
+    plt.figure()
+    for i, burned in enumerate(burned_areas):
+        label = labels[i] if labels and i < len(labels) else None
+        plt.plot(burned, marker='o', label=label)
+    plt.xlabel('Time Step')
+    plt.ylabel('Burned Area (cells)')
+    plt.title('Burned Area vs. Time')
+    plt.grid(True)
+    if labels:
+        plt.legend()
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path)
+    plt.show()
+
+def export_burned_area_csv(burned_area, filename):
+    """
+    Export burned area data to a CSV file.
+    Args:
+        burned_area (array-like): burned area at each time step
+        filename (str): path to output CSV file
+    """
+    import numpy as np
+    import csv
+    with open(filename, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['time_step', 'burned_area'])
+        for t, area in enumerate(burned_area):
+            writer.writerow([t, area])

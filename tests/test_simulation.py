@@ -71,3 +71,14 @@ def test_run_simulation():
     assert np.count_nonzero(final['state'] == simulation.CellState.BURNED) >= 5
     # History should have at least as many steps as needed to burn out
     assert len(history) > 1
+
+def test_burned_area_over_time():
+    grid = simulation.initialize_grid((3, 3))
+    simulation.ignite(grid, 1, 1, time=0)
+    history = simulation.run_simulation(grid, max_steps=10)
+    burned = simulation.burned_area_over_time(history)
+    # Burned area should be monotonically increasing
+    assert np.all(np.diff(burned) >= 0)
+    # First time step should have 0 burned, then increase
+    assert burned[0] == 0
+    assert burned[-1] == np.count_nonzero(history[-1]['state'] == simulation.CellState.BURNED)
