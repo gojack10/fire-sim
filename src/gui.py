@@ -509,12 +509,25 @@ class MainWindow(QMainWindow):
             # print(f"  Base Prob: {params['base_prob']}, Wind Str: {params['wind_strength']}, Slope Coeff: {params['slope_coefficient']}")
             # print(f"  Moisture Thresh: {params['moisture_threshold']}")
             
-            step_params = {k: v for k, v in params.items() if k not in ['grid_rows', 'grid_cols', 'max_steps']}
-            self.simulation_grid = simulation.step(
-                self.simulation_grid,
+            wind_tuple = (params['wind_speed'], params['wind_direction'])
+
+            step_params_for_sim = {
+                'moisture_threshold': params['moisture_threshold'], # Corrected: maps UI 'moisture_threshold' to sim 'moisture_threshold'
+                'wind': wind_tuple,
+                'base_prob': params['base_prob'],
+                'wind_strength': params['wind_strength'],
+                'slope_coefficient': params['slope_coefficient'],
+                'cell_resolution': params['cell_resolution']
+                # random_seed is not currently configurable via UI, so it uses default or None
+            }
+
+            new_ignitions_count = simulation.step(
+                self.simulation_grid,  # This grid is modified in-place by simulation.step
                 time=self.current_step,
-                **step_params
+                **step_params_for_sim
             )
+            # print(f"DEBUG: Step {self.current_step} completed. New ignitions: {new_ignitions_count}")
+
             self.current_step += 1
 
             # Update main display
