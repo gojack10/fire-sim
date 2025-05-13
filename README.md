@@ -58,4 +58,39 @@ With the virtual environment activated, install the required packages:
 uv pip install -r requirements.txt
 ```
 
-## Running Simulations
+## Running the GUI
+
+The main entry point for this project is the interactive wildfire simulation GUI.
+
+### 1. Ensure dependencies are installed
+All dependencies, including PyQt6, are listed in `requirements.txt`. If you haven't already, activate your virtual environment and run:
+```bash
+uv pip install -r requirements.txt
+```
+
+### 2. Run the GUI
+You can launch the GUI with:
+```bash
+uv run python -m src.gui
+```
+
+Or, if you prefer not to use uv for running the script (but have installed dependencies with it):
+```bash
+python -m src.gui
+```
+
+### 3. Using the GUI
+- Load a real-world GeoTIFF DEM file (e.g., Clearlake) via the GUI to initialize terrain.
+- Add ignition points by clicking in the bottom left window (terrain map) after the DEM file is loaded.
+- Configure simulation parameters (wind, slope, fuel, etc.) in the control panel.
+- Run multiple simulations with different settings on the same map to compare outcomes.
+
+For troubleshooting, ensure your virtual environment is activated and all dependencies (especially PyQt6) are installed.
+
+---
+
+## Running Simulations (CLI)
+
+There is also a command-line script for batch simulation runs, located at `tests/sample_notebook_script.py`. This is optional and mainly for advanced users or automated testing.
+
+---
