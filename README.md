@@ -1,5 +1,8 @@
 # Wildfire Simulation Project
 
+![Wildfire Simulation GUI](gui.png)
+
+
 This project simulates wildfire spread across a 2D grid, incorporating environmental factors such as terrain elevation (slope effects) and wind.
 
 ## Features
