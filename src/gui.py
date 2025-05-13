@@ -6,6 +6,8 @@ import matplotlib
 matplotlib.use('QtAgg') # Use QtAgg backend for PyQt6
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+import matplotlib.colors as mcolors
+import matplotlib.cm as mcm
 
 # Import simulation logic (assuming it's in the same directory or src is in PYTHONPATH)
 # For now, let's assume we will import specific functions as needed
@@ -36,6 +38,10 @@ class MainWindow(QMainWindow):
         self.simulation_timer.timeout.connect(self._simulation_step_triggered)
         self.timer_interval_ms = 500 # Default timer interval
         self.ignition_points = [] # Initialize ignition points
+
+        # Colorbar references
+        self.terrain_preview_cbar = None
+        self.main_sim_cbar = None
 
     def _create_controls_panel(self):
         controls_panel = QWidget()
@@ -232,12 +238,26 @@ class MainWindow(QMainWindow):
             # QtWidgets.QMessageBox.warning(self, "Error", f"Could not generate random terrain: {e}")
 
     def _update_terrain_preview(self):
-        self.terrain_preview_ax.clear()
-        self.ax.clear() # Also clear the main simulation display axes
+        # Handle terrain preview panel (separate figure)
+        if hasattr(self, 'terrain_preview_fig') and self.terrain_preview_cbar and self.terrain_preview_cbar.ax and self.terrain_preview_cbar.ax.figure == self.terrain_preview_fig:
+            try:
+                self.terrain_preview_fig.delaxes(self.terrain_preview_cbar.ax)
+            except Exception as e:
+                print(f"Error deleting terrain_preview_cbar axes: {e}")
+        self.terrain_preview_cbar = None
+        self.terrain_preview_ax.clear() # Clear only the axes for the preview
+
+        # Handle main simulation panel (self.figure and self.ax)
+        if hasattr(self, 'figure'):
+            self.figure.clear()
+            self.ax = self.figure.add_subplot(111)
+        self.main_sim_cbar = None # Ensure it's reset as the figure is cleared
 
         if self.elevation_data is not None:
-            # Update terrain preview
-            self.terrain_preview_ax.imshow(self.elevation_data, cmap='terrain')
+            # Update terrain preview display
+            im_preview = self.terrain_preview_ax.imshow(self.elevation_data, cmap='terrain')
+            if hasattr(self, 'terrain_preview_fig'): # Ensure figure exists
+                self.terrain_preview_cbar = self.terrain_preview_fig.colorbar(im_preview, ax=self.terrain_preview_ax, label='Elevation (m)', fraction=0.046, pad=0.04)
             for r, c in self.ignition_points:
                 self.terrain_preview_ax.plot(c, r, 'rx', markersize=5)
             self.terrain_preview_ax.set_xticks([])
@@ -245,7 +265,9 @@ class MainWindow(QMainWindow):
             self.terrain_preview_canvas.draw()
 
             # Update main simulation display (initially same as preview)
-            self.ax.imshow(self.elevation_data, cmap='terrain')
+            im_main_initial = self.ax.imshow(self.elevation_data, cmap='terrain')
+            if hasattr(self, 'figure'): # Ensure figure exists
+                self.main_sim_cbar = self.figure.colorbar(im_main_initial, ax=self.ax, label='Elevation (m)', fraction=0.046, pad=0.04)
             for r, c in self.ignition_points:
                 self.ax.plot(c, r, 'rx', markersize=8) # Slightly larger markers for main display
             self.ax.set_title("Simulation Grid (Click on preview to set ignition)", fontsize=10)
@@ -484,62 +506,65 @@ class MainWindow(QMainWindow):
     def _simulation_step_triggered(self):
         params = self._get_simulation_parameters()
         if params is None:
-            # Error already handled by _get_simulation_parameters
-            return False # Indicate failure
+            return False
 
         if self.simulation_grid is None:
             self.statusBar().showMessage("Error: Simulation grid not initialized.")
-            return False # Indicate failure
+            return False
 
-        max_steps = params.get('max_steps', 100) # Default if not found, though it should be there
-
+        max_steps = params.get('max_steps', 100)
         if self.current_step >= max_steps:
             self.statusBar().showMessage(f"Max steps ({max_steps}) reached.")
-            # Potentially stop timer here if running
             if hasattr(self, 'simulation_timer') and self.simulation_timer.isActive():
                 self.simulation_timer.stop()
-            self.start_button.setEnabled(False) # Cannot continue if max steps reached
+            self.start_button.setEnabled(False)
             self.pause_button.setEnabled(False)
             self.step_button.setEnabled(False)
-            return False # Indicate simulation cannot proceed
+            return False
 
         try:
-            # print(f"Step {self.current_step}: Running simulation step...")
-            # print(f"  Wind Speed: {params['wind_speed']}, Wind Dir: {params['wind_direction']}")
-            # print(f"  Base Prob: {params['base_prob']}, Wind Str: {params['wind_strength']}, Slope Coeff: {params['slope_coefficient']}")
-            # print(f"  Moisture Thresh: {params['moisture_threshold']}")
-            
             wind_tuple = (params['wind_speed'], params['wind_direction'])
-
             step_params_for_sim = {
-                'moisture_threshold': params['moisture_threshold'], # Corrected: maps UI 'moisture_threshold' to sim 'moisture_threshold'
+                'moisture_threshold': params['moisture_threshold'],
                 'wind': wind_tuple,
                 'base_prob': params['base_prob'],
                 'wind_strength': params['wind_strength'],
                 'slope_coefficient': params['slope_coefficient'],
                 'cell_resolution': params['cell_resolution']
-                # random_seed is not currently configurable via UI, so it uses default or None
             }
 
-            new_ignitions_count = simulation.step(
-                self.simulation_grid,  # This grid is modified in-place by simulation.step
+            simulation.step(
+                self.simulation_grid,
                 time=self.current_step,
                 **step_params_for_sim
             )
-            # print(f"DEBUG: Step {self.current_step} completed. New ignitions: {new_ignitions_count}")
-
             self.current_step += 1
 
-            # Update main display
-            self.ax.clear()
-            # Corrected to use CellState.BURNED
-            self.ax.imshow(self.simulation_grid['state'], cmap='hot', vmin=int(simulation.CellState.UNBURNED), vmax=int(simulation.CellState.BURNED))
-            # Overlay elevation with transparency for context
-            self.ax.imshow(self.simulation_grid['elevation'], cmap='Greys', alpha=0.3, vmin=np.min(self.simulation_grid['elevation']), vmax=np.max(self.simulation_grid['elevation']))
-            self.ax.set_title(f"Simulation Step: {self.current_step}")
-            self.canvas.draw()
-            self.statusBar().showMessage(f"Simulation step: {self.current_step}")
+            # Update main display - clear entire figure and re-add subplot
+            if hasattr(self, 'figure'):
+                self.figure.clear()
+                self.ax = self.figure.add_subplot(111)
+            self.main_sim_cbar = None # Reset cbar reference
 
+            # Define normalization for greyscale elevation
+            min_elev = np.min(self.simulation_grid['elevation'])
+            max_elev = np.max(self.simulation_grid['elevation'])
+            norm_elev = mcolors.Normalize(vmin=min_elev, vmax=max_elev)
+
+            self.ax.imshow(self.simulation_grid['state'], cmap='hot', vmin=int(simulation.CellState.UNBURNED), vmax=int(simulation.CellState.BURNED))
+            # Use the explicit norm for imshow
+            self.ax.imshow(self.simulation_grid['elevation'], cmap='Greys', alpha=0.3, norm=norm_elev)
+            
+            # Create a ScalarMappable for the colorbar
+            mappable_greys = mcm.ScalarMappable(norm=norm_elev, cmap='Greys')
+
+            if hasattr(self, 'figure'):
+                self.main_sim_cbar = self.figure.colorbar(mappable_greys, ax=self.ax, label='Elevation (Greyscale)', fraction=0.046, pad=0.04)
+            
+            current_title = f"Simulation Step: {self.current_step}"
+            self.ax.set_title(current_title)
+            self.canvas.draw()
+            
             # Check for end condition (no more burning cells)
             if not np.any(self.simulation_grid['state'] == simulation.CellState.BURNING):
                 self.statusBar().showMessage(f"Simulation ended at step {self.current_step}: No more burning cells.")
