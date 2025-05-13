@@ -30,7 +30,7 @@ For a detailed project plan, including future development ideas and a breakdown 
 
 **1. Clone the Repository (if you haven't already):**
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/gojack10/fire-sim
 cd weather-sim
 ```
 
